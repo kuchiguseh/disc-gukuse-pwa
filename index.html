@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DISC別口ぐせ診断</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="styles.css">
+  <meta name="theme-color" content="#f4a6c6">
+</head>
+<body>
+  <header>
+    <h1>DISC別口ぐせ診断 <span class="pill small mono">PWA</span></h1>
+  </header>
+  <div class="wrap">
+    <section id="home" class="card">
+      <p>10問に答えると、あなたの傾向（D/I/S/C）と、タイプ別「口ぐせ処方箋」が表示されます。やさしい表現で今日から使えるフレーズを提案します。</p>
+      <button id="startBtn" class="btn primary">診断をはじめる</button>
+      <p class="muted small">※オフラインOK。データは端末内に保存されます。</p>
+    </section>
+
+    <section id="quiz" class="card hidden">
+      <div class="row" style="align-items:center;">
+        <div class="muted">Q<span id="qIndex">1</span>/10</div>
+        <div class="progress" style="flex:1;"><div id="bar" class="bar"></div></div>
+      </div>
+      <h2 id="qText" style="margin:.6rem 0 0 0;"></h2>
+      <div id="choices" class="choices"></div>
+      <div class="row" style="margin-top:12px;">
+        <button id="backBtn" class="btn">戻る</button>
+        <button id="nextBtn" class="btn primary" disabled>次へ</button>
+      </div>
+    </section>
+
+    <section id="result" class="card hidden">
+      <div class="tabs">
+        <div class="tab active" data-tab="summary">📊 結果</div>
+        <div class="tab" data-tab="rx">💊 処方箋</div>
+        <div class="tab" data-tab="practice">✅ 練習</div>
+      </div>
+
+      <div id="summary" class="section">
+        <h2>診断結果</h2>
+        <p>主傾向：<span id="primaryBadge" class="badge">-</span>　準傾向：<span id="secondaryBadge" class="badge">-</span></p>
+        <div class="legend"><span class="pill D">D: 行動</span><span class="pill I">I: 社交</span><span class="pill S">S: 思いやり</span><span class="pill C">C: こだわり</span></div>
+        <canvas id="chart" width="680" height="260" aria-label="スコアグラフ"></canvas>
+        <p id="typeLine" class="muted"></p>
+        <div class="grid">
+          <div class="kpis">
+            <div class="kpi center"><div class="small muted">D</div><div id="scoreD" class="mono"></div></div>
+            <div class="kpi center"><div class="small muted">I</div><div id="scoreI" class="mono"></div></div>
+            <div class="kpi center"><div class="small muted">S</div><div id="scoreS" class="mono"></div></div>
+            <div class="kpi center"><div class="small muted">C</div><div id="scoreC" class="mono"></div></div>
+          </div>
+        </div>
+        <div class="row" style="margin-top:12px;">
+          <button id="restartBtn" class="btn">最初からやり直す</button>
+          <button id="saveBtn" class="btn">結果を保存</button>
+          <button id="clearBtn" class="btn">保存をリセット</button>
+        </div>
+      </div>
+
+      <div id="rx" class="section hidden">
+        <div id="top3" class="top3 hidden">
+          <h4>あなたがよく使っている口ぐせはこの３つ！</h4>
+          <ol id="top3List"></ol>
+        </div>
+        <h2>タイプ別 口ぐせ処方箋</h2>
+        <div id="rxContent" class="grid"></div>
+      </div>
+
+      <div id="practice" class="section hidden">
+        <h2>毎日の練習</h2>
+        <p class="muted small">1日3つのミッションをチェック。端末内に保存されます。</p>
+        <div id="missions" class="grid"></div>
+      </div>
+    </section>
+
+    <footer>© MBWC – オフライン対応</footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
