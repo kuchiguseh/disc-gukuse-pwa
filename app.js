@@ -11,8 +11,66 @@ const $top3 = el('top3'), $top3List = el('top3List');
 
 let DATA = null;
 let idx = 0;
-let answers = []; // 'D','I','S','C'
+let answers = [];
 let scores = {D:0,I:0,S:0,C:0};
+
+// 追加質問フェーズ用
+let isTiebreak = false;
+let tiebreakIdx = 0;
+let tiebreakTypes = [];   // 同点タイプの配列（例：['D','I','S']）
+let tiebreakAnswers = []; // 追加質問の回答
+
+// 追加質問：2タイプ間の決戦用（全6パターン）
+const TIEBREAK_QUESTIONS = {
+  'DI': [
+    { text: '目標を達成したとき、まず思うことは？',
+      choices: [{ label: '「次はもっと大きな目標へ！」', type: 'D' }, { label: '「みんなに報告して一緒に喜びたい！」', type: 'I' }] },
+    { text: '大切なのはどちら？',
+      choices: [{ label: '結果とスピード', type: 'D' }, { label: '盛り上がりと共感', type: 'I' }] },
+    { text: 'ピンチの時、あなたは？',
+      choices: [{ label: '素早く判断して動く', type: 'D' }, { label: '周りを明るく鼓舞する', type: 'I' }] }
+  ],
+  'DS': [
+    { text: 'プロジェクトで大切にすることは？',
+      choices: [{ label: 'スピードと成果', type: 'D' }, { label: 'チームの安定と信頼', type: 'S' }] },
+    { text: 'あなたの自然な動き方は？',
+      choices: [{ label: '自分が先頭に立って引っ張る', type: 'D' }, { label: '周りを支えながら着実に進める', type: 'S' }] },
+    { text: '困った時に頼りにするのは？',
+      choices: [{ label: '自分の直感と行動力', type: 'D' }, { label: 'これまでの経験と周囲との絆', type: 'S' }] }
+  ],
+  'DC': [
+    { text: '決断するとき、あなたは？',
+      choices: [{ label: '直感で素早く決める', type: 'D' }, { label: 'データを集めてから慎重に決める', type: 'C' }] },
+    { text: '新しいことを始めるとき、大事なのは？',
+      choices: [{ label: 'とにかく動き出すこと', type: 'D' }, { label: 'しっかり計画してから動くこと', type: 'C' }] },
+    { text: 'ミスをしたとき、まず何をしますか？',
+      choices: [{ label: '即座に対応策を実行する', type: 'D' }, { label: '原因を分析して再発を防ぐ', type: 'C' }] }
+  ],
+  'IS': [
+    { text: '楽しい時間を過ごすとき、どちらに近い？',
+      choices: [{ label: 'みんなでワイワイしていたい', type: 'I' }, { label: '親しい人と静かに過ごしたい', type: 'S' }] },
+    { text: '人との関係で大切にしていることは？',
+      choices: [{ label: '楽しさと盛り上がり', type: 'I' }, { label: '安心感と信頼', type: 'S' }] },
+    { text: '誰かを元気づけるとき、あなたは？',
+      choices: [{ label: '明るい話や笑いで気分を上げる', type: 'I' }, { label: 'そばにいてじっくり話を聞く', type: 'S' }] }
+  ],
+  'IC': [
+    { text: '新しいアイデアが浮かんだとき、あなたは？',
+      choices: [{ label: 'すぐ周りに話して盛り上げたい', type: 'I' }, { label: 'まず整理して検証してから共有したい', type: 'C' }] },
+    { text: '会議で大切にすることは？',
+      choices: [{ label: '全員が発言しやすい雰囲気をつくること', type: 'I' }, { label: '正確な情報をもとに議論すること', type: 'C' }] },
+    { text: '仕事のやりがいを感じるのは？',
+      choices: [{ label: '人と一緒に盛り上がれたとき', type: 'I' }, { label: '丁寧にやり遂げて品質が上がったとき', type: 'C' }] }
+  ],
+  'SC': [
+    { text: 'トラブルが起きたとき、まず何をしますか？',
+      choices: [{ label: '周りを安心させて落ち着かせる', type: 'S' }, { label: '原因を分析して対策を考える', type: 'C' }] },
+    { text: '仕事で誇りに思うことは？',
+      choices: [{ label: 'チームのために陰で支え続けること', type: 'S' }, { label: '正確で質の高い仕事をすること', type: 'C' }] },
+    { text: '新しい環境に入るとき、あなたは？',
+      choices: [{ label: 'まず周りに馴染んで信頼関係をつくる', type: 'S' }, { label: 'ルールや仕組みをしっかり理解する', type: 'C' }] }
+  ]
+};
 
 const COLORS = {D:getComputedStyle(document.documentElement).getPropertyValue('--D').trim(),
                 I:getComputedStyle(document.documentElement).getPropertyValue('--I').trim(),
@@ -28,12 +86,17 @@ const TYPE_DESC = {
 
 async function loadData(){ const r = await fetch('data.json'); DATA = await r.json(); }
 function showHome(){ $home.classList.remove('hidden'); $quiz.classList.add('hidden'); $result.classList.add('hidden'); }
-function start(){ idx=0; answers = Array(DATA.questions.length).fill(null); scores={D:0,I:0,S:0,C:0};
-  $home.classList.add('hidden'); $result.classList.add('hidden'); $quiz.classList.remove('hidden'); renderQuestion(); }
+function start(){
+  idx=0; isTiebreak=false; tiebreakIdx=0; tiebreakTypes=[]; tiebreakAnswers=[];
+  answers = Array(DATA.questions.length).fill(null); scores={D:0,I:0,S:0,C:0};
+  $home.classList.add('hidden'); $result.classList.add('hidden'); $quiz.classList.remove('hidden');
+  renderQuestion();
+}
 
 function shuffled(arr){ const a = arr.map(x=>({...x})); for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]];} return a; }
 
 function renderQuestion(){
+  if(isTiebreak){ renderTiebreakQuestion(); return; }
   const q = DATA.questions[idx];
   $qIndex.textContent = (idx+1);
   $qText.textContent = q.text;
@@ -42,7 +105,7 @@ function renderQuestion(){
   list.forEach(c=>{
     const div = document.createElement('div');
     div.className='choice';
-    div.textContent=c.label; // タイプ表記は出さない
+    div.textContent=c.label;
     div.addEventListener('click', ()=>{
       answers[idx]=c.type;
       document.querySelectorAll('.choice').forEach(ch=>ch.style.outline='');
@@ -57,17 +120,110 @@ function renderQuestion(){
   $bar.style.width = ((idx)/DATA.questions.length*100)+'%';
 }
 
-function next(){ if(answers[idx]==null)return; if(idx<DATA.questions.length-1){ idx++; renderQuestion(); } else { compute(); showResult(); } }
-function back(){ if(idx===0)return; idx--; renderQuestion(); }
+function renderTiebreakQuestion(){
+  // 同点タイプが2つに絞られていたら対決質問、3つ以上なら最初の2つで対決
+  const types = tiebreakTypes;
+  const key = [types[0], types[1]].sort().join('');
+  const qs = TIEBREAK_QUESTIONS[key] || [];
+  const q = qs[tiebreakIdx % qs.length];
+
+  const total = DATA.questions.length;
+  $qIndex.textContent = total + tiebreakIdx + 1;
+  $bar.style.width = '95%';
+
+  // 追加質問であることをわかりやすく表示
+  $qText.innerHTML = `<span style="font-size:0.75em;color:#f071a8;display:block;margin-bottom:6px;">🌸 同点のため追加質問（${types.join('・')}タイプが同点です）</span>${q.text}`;
+  $choices.innerHTML = '';
+  $back.disabled = true;
+  $next.disabled = true;
+
+  q.choices.forEach(c=>{
+    const div = document.createElement('div');
+    div.className='choice';
+    div.textContent=c.label;
+    div.addEventListener('click', ()=>{
+      document.querySelectorAll('.choice').forEach(ch=>ch.style.outline='');
+      div.style.outline=`2px solid ${COLORS[c.type]}`;
+      // 選択したタイプにポイントを加算して即判定
+      scores[c.type]++;
+      tiebreakAnswers.push(c.type);
+      setTimeout(()=>{ checkTiebreak(); }, 350);
+    });
+    $choices.appendChild(div);
+  });
+}
+
+function checkTiebreak(){
+  // 現在の同点タイプを再計算
+  const max = Math.max(...tiebreakTypes.map(t=>scores[t]));
+  const tied = tiebreakTypes.filter(t=>scores[t]===max);
+
+  if(tied.length===1){
+    // 決着がついた
+    showResult();
+  } else if(tiebreakIdx < 2){
+    // まだ追加質問が残っている
+    tiebreakIdx++;
+    tiebreakTypes = tied; // 絞り込まれたタイプで続ける
+    renderTiebreakQuestion();
+  } else {
+    // 3問やっても決まらない場合はスコアが高い方を選ぶ（最終手段）
+    const finalType = tied[0]; // アルファベット順で先のタイプ
+    scores[finalType]++;       // 1点加算して決定
+    showResult();
+  }
+}
+
+function getTiedTypes(){
+  const max = Math.max(scores.D, scores.I, scores.S, scores.C);
+  return Object.keys(scores).filter(t=>scores[t]===max);
+}
+
+function next(){
+  if(isTiebreak) return; // 追加質問中は next ボタン不使用
+  if(answers[idx]==null)return;
+  if(idx<DATA.questions.length-1){ idx++; renderQuestion(); }
+  else {
+    compute();
+    const tied = getTiedTypes();
+    if(tied.length >= 2){
+      // 同点 → 追加質問フェーズへ
+      isTiebreak = true;
+      tiebreakIdx = 0;
+      tiebreakTypes = tied.slice(0,2); // 上位2タイプで対決開始
+      $back.disabled = true;
+      $next.disabled = true;
+      renderTiebreakQuestion();
+    } else {
+      showResult();
+    }
+  }
+}
+
+function back(){ if(idx===0||isTiebreak)return; idx--; renderQuestion(); }
 function compute(){ scores={D:0,I:0,S:0,C:0}; answers.forEach(t=>{ if(t) scores[t]++; }); }
-function primarySecondary(sc){ const e=Object.entries(sc).sort((a,b)=>b[1]-a[1]); const [p1,v1]=e[0],[p2,v2]=e[1]; return (v2===v1)?[p1[0]+'×'+p2[0], e[2][0]]:[p1[0],p2[0]]; }
-function setAccent(primaryType){ const t=(primaryType.includes('×')?primaryType.split('×')[0]:primaryType); const color=COLORS[t]||'#f071a8';
-  document.documentElement.style.setProperty('--accent', color); $primaryBadge.className=`badge ${t}`; $primaryBadge.textContent=primaryType; }
+
+function primarySecondary(sc){
+  const e=Object.entries(sc).sort((a,b)=>b[1]-a[1]);
+  const [p1,v1]=e[0],[p2,v2]=e[1];
+  // 追加質問で同点は解消済みなので、基本的に単独1位になっているはず
+  return [p1[0], p2[0]];
+}
+
+function setAccent(primaryType){
+  const t=(primaryType.includes('×')?primaryType.split('×')[0]:primaryType);
+  const color=COLORS[t]||'#f071a8';
+  document.documentElement.style.setProperty('--accent', color);
+  $primaryBadge.className=`badge ${t}`;
+  $primaryBadge.textContent=primaryType;
+}
+
 function colorBadge($el,t){ $el.className=`badge ${t}`; $el.textContent=t; }
 
 function drawChart(sc, animate=true){
   const ctx = $chart.getContext('2d'); ctx.clearRect(0,0,$chart.width,$chart.height);
-  const keys=['D','I','S','C']; const max = DATA.questions.length; const w=120, gap=20, baseY=230, xStart=40; ctx.font='14px system-ui, sans-serif';
+  const keys=['D','I','S','C']; const max = DATA.questions.length + tiebreakAnswers.length;
+  const w=120, gap=20, baseY=230, xStart=40; ctx.font='14px system-ui, sans-serif';
   const targetHeights = keys.map(k => (sc[k]/max)*180); let progress = 0;
   const step = ()=>{ progress = Math.min(1, progress + 0.08); ctx.clearRect(0,0,$chart.width,$chart.height);
     keys.forEach((k,i)=>{ const x=xStart+i*(w+gap); const h=targetHeights[i]*progress; ctx.fillStyle='rgba(240,113,168,0.12)'; ctx.fillRect(x, baseY-180, w, 180);
